@@ -1,0 +1,31 @@
+# Dependencies
+**/node_modules/
+/.pnp
+.pnp.*
+
+# Next.js build output
+**/ .next/
+**/out/
+
+# Production build
+**/build/
+
+# IDE and System files
+.vscode/
+.idea/
+.DS_Store
+*.pem
+Thumbs.db
+
+# Logs
+*-debug.log*
+*-error.log*
+
+# Environment files
+.env*
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
