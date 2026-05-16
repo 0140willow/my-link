@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,43 +20,73 @@ import {
 import { links as initialLinks, Link as LinkType } from "@/data/links"
 import Image from "next/image"
 import { ArrowUpRight, Plus, Trash2 } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+const linkSchema = z.object({
+  title: z.string()
+    .min(1, "제목을 입력해주세요.")
+    .max(20, "제목은 20자 이내로 입력해주세요."),
+  url: z.string()
+    .min(1, "주소를 입력해주세요.")
+    .refine((val) => !/\s/.test(val), "주소에 공백을 포함할 수 없습니다.")
+    .refine((val) => {
+      // 아주 기본적인 도메인/URL 형식 체크
+      return /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w-./?%&=]*)?$/.test(val);
+    }, "유효한 주소 형식이 아닙니다."),
+})
+
+type LinkFormValues = z.infer<typeof linkSchema>;
 
 export default function Page() {
   const [links, setLinks] = useState<LinkType[]>(initialLinks);
-  const [newTitle, setNewTitle] = useState("");
-  const [newUrl, setNewUrl] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleAddLink = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle || !newUrl) return;
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<LinkFormValues>({
+    resolver: zodResolver(linkSchema),
+    defaultValues: {
+      title: "",
+      url: "",
+    },
+  });
 
-    let formattedUrl = newUrl;
-    if (!/^https?:\/\//i.test(newUrl)) {
-      formattedUrl = 'https://' + newUrl;
+  const onSubmit = (data: LinkFormValues) => {
+    let formattedUrl = data.url;
+    if (!/^https?:\/\//i.test(data.url)) {
+      formattedUrl = 'https://' + data.url;
     }
 
     const newLink: LinkType = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: newTitle,
+      id: crypto.randomUUID(),
+      title: data.title,
       url: formattedUrl,
     };
 
     setLinks([...links, newLink]);
-    setNewTitle("");
-    setNewUrl("");
     setIsOpen(false);
+    reset();
   };
 
   const handleDeleteLink = (id: string) => {
     setLinks(links.filter((link) => link.id !== id));
   };
 
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      reset();
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-between p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-slate-50 to-white dark:from-slate-900 dark:via-slate-950 dark:to-black">
       <div className="w-full max-w-md flex flex-col items-center gap-10 mt-10">
         <div className="w-full flex justify-end">
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger 
               render={
                 <Button variant="outline" size="sm" className="gap-2 border-[#5B5FC7] text-[#5B5FC7] hover:bg-[#5B5FC7] hover:text-white transition-all">
@@ -63,7 +96,7 @@ export default function Page() {
               }
             />
             <DialogContent className="sm:max-w-[425px]">
-              <form onSubmit={handleAddLink}>
+              <form onSubmit={handleSubmit(onSubmit)}>
                 <DialogHeader>
                   <DialogTitle>새 링크 추가</DialogTitle>
                   <DialogDescription>
@@ -72,22 +105,32 @@ export default function Page() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="title">제목</Label>
+                    <Label htmlFor="title" className={cn(errors.title && "text-destructive")}>제목</Label>
                     <Input
                       id="title"
                       placeholder="예: 인스타그램"
-                      value={newTitle}
-                      onChange={(e) => setNewTitle(e.target.value)}
+                      {...register("title")}
+                      className={cn(errors.title && "border-destructive focus-visible:ring-destructive")}
                     />
+                    {errors.title && (
+                      <p className="text-[0.8rem] font-medium text-destructive">
+                        {errors.title.message}
+                      </p>
+                    )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="url">주소 (URL)</Label>
+                    <Label htmlFor="url" className={cn(errors.url && "text-destructive")}>주소 (URL)</Label>
                     <Input
                       id="url"
                       placeholder="example.com"
-                      value={newUrl}
-                      onChange={(e) => setNewUrl(e.target.value)}
+                      {...register("url")}
+                      className={cn(errors.url && "border-destructive focus-visible:ring-destructive")}
                     />
+                    {errors.url && (
+                      <p className="text-[0.8rem] font-medium text-destructive">
+                        {errors.url.message}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <DialogFooter>
