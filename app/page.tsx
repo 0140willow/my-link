@@ -1,12 +1,103 @@
+'use client';
+
+import { useState } from "react"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
-import { links } from "@/data/links"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { links as initialLinks, Link as LinkType } from "@/data/links"
 import Image from "next/image"
-import { ArrowUpRight } from "lucide-react"
+import { ArrowUpRight, Plus, Trash2 } from "lucide-react"
 
 export default function Page() {
+  const [links, setLinks] = useState<LinkType[]>(initialLinks);
+  const [newTitle, setNewTitle] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleAddLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle || !newUrl) return;
+
+    let formattedUrl = newUrl;
+    if (!/^https?:\/\//i.test(newUrl)) {
+      formattedUrl = 'https://' + newUrl;
+    }
+
+    const newLink: LinkType = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: newTitle,
+      url: formattedUrl,
+    };
+
+    setLinks([...links, newLink]);
+    setNewTitle("");
+    setNewUrl("");
+    setIsOpen(false);
+  };
+
+  const handleDeleteLink = (id: string) => {
+    setLinks(links.filter((link) => link.id !== id));
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-between p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-100 via-slate-50 to-white dark:from-slate-900 dark:via-slate-950 dark:to-black">
-      <div className="w-full max-w-md flex flex-col items-center gap-10 mt-20">
+      <div className="w-full max-w-md flex flex-col items-center gap-10 mt-10">
+        <div className="w-full flex justify-end">
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger 
+              render={
+                <Button variant="outline" size="sm" className="gap-2 border-[#5B5FC7] text-[#5B5FC7] hover:bg-[#5B5FC7] hover:text-white transition-all">
+                  <Plus className="w-4 h-4" />
+                  링크 추가
+                </Button>
+              }
+            />
+            <DialogContent className="sm:max-w-[425px]">
+              <form onSubmit={handleAddLink}>
+                <DialogHeader>
+                  <DialogTitle>새 링크 추가</DialogTitle>
+                  <DialogDescription>
+                    프로필에 표시할 새로운 링크 정보를 입력해주세요.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="title">제목</Label>
+                    <Input
+                      id="title"
+                      placeholder="예: 인스타그램"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="url">주소 (URL)</Label>
+                    <Input
+                      id="url"
+                      placeholder="example.com"
+                      value={newUrl}
+                      onChange={(e) => setNewUrl(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="submit" className="bg-[#5B5FC7] hover:bg-[#4A4EAB] text-white w-full">추가하기</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
         <header className="text-center space-y-3">
           <div className="inline-block px-3 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full mb-2">
             Developer & Creator
@@ -21,37 +112,53 @@ export default function Page() {
 
         <main className="w-full flex flex-col gap-3">
           {links.map((link) => {
-            const domain = new URL(link.url).hostname;
+            let domain = "example.com";
+            try {
+              domain = new URL(link.url).hostname;
+            } catch {
+              domain = link.url;
+            }
             const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
             return (
-              <a
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block w-full"
-              >
-                <Card className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/30 group-active:scale-[0.98]">
-                  <CardHeader className="flex flex-row items-center justify-between gap-4 p-5">
-                    <div className="flex items-center gap-4">
-                      <div className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-border/50 overflow-hidden group-hover:border-primary/20 transition-colors">
-                        <Image
-                          src={faviconUrl}
-                          alt={`${link.title} icon`}
-                          width={24}
-                          height={24}
-                          className="object-contain"
-                          unoptimized
-                        />
+              <div key={link.id} className="group relative">
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full"
+                >
+                  <Card className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/30 group-active:scale-[0.98]">
+                    <CardHeader className="flex flex-row items-center justify-between gap-4 p-5">
+                      <div className="flex items-center gap-4">
+                        <div className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-border/50 overflow-hidden group-hover:border-primary/20 transition-colors">
+                          <Image
+                            src={faviconUrl}
+                            alt={`${link.title} icon`}
+                            width={24}
+                            height={24}
+                            className="object-contain"
+                            unoptimized
+                          />
+                        </div>
+                        <CardTitle className="text-base font-semibold tracking-tight">{link.title}</CardTitle>
                       </div>
-                      <CardTitle className="text-base font-semibold tracking-tight">{link.title}</CardTitle>
-                    </div>
-                    <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
-                  </CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/0 to-primary/0 group-hover:via-primary/[0.02] transition-all pointer-events-none" />
-                </Card>
-              </a>
+                      <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                    </CardHeader>
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/0 to-primary/0 group-hover:via-primary/[0.02] transition-all pointer-events-none" />
+                  </Card>
+                </a>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    handleDeleteLink(link.id);
+                  }}
+                  className="absolute -right-12 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             )
           })}
         </main>
