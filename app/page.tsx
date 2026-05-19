@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { links as initialLinks, Link as LinkType } from "@/data/links"
+import { Link as LinkType } from "@/data/links"
 import Image from "next/image"
 import { ArrowUpRight, Plus, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -27,12 +27,10 @@ import {
   addDoc, 
   deleteDoc, 
   doc, 
-  onSnapshot, 
   query, 
   orderBy, 
   serverTimestamp,
-  getDocs,
-  writeBatch
+  getDocs
 } from "firebase/firestore"
 
 const linkSchema = z.object({
@@ -54,57 +52,28 @@ export default function Page() {
   const [links, setLinks] = useState<LinkType[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Firestore에서 링크 목록 실시간으로 가져오기
-  useEffect(() => {
+  const fetchLinks = async () => {
     const linksCol = collection(db, "users", "anonymous", "links");
-    const q = query(linksCol, orderBy("createdAt", "asc"));
-
-    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-      const existingTitles = new Set();
+    const q = query(linksCol, orderBy("createdAt", "desc"));
+    
+    try {
+      const querySnapshot = await getDocs(q);
       const linksData: LinkType[] = [];
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        existingTitles.add(data.title);
         linksData.push({ id: doc.id, ...data } as LinkType);
       });
 
-      // 필수 기본 링크가 없는지 확인
-      const missingDefaults = initialLinks.filter(
-        (def) => !existingTitles.has(def.title)
-      );
-
-      if (missingDefaults.length > 0) {
-        console.log("Seeding missing default links...");
-        const batch = writeBatch(db);
-        
-        // 정렬을 위해 Youtube(index 0)가 가장 과거가 되도록 설정 (asc 정렬이므로)
-        // 아주 과거의 날짜를 기준으로 잡아 신규 링크가 항상 아래에 오도록 함
-        const baseDate = new Date("2024-01-01T00:00:00Z");
-        
-        missingDefaults.forEach((link) => {
-          const newDocRef = doc(linksCol);
-          // initialLinks에서의 원본 인덱스를 찾아 순서 유지
-          const originalIndex = initialLinks.findIndex(l => l.title === link.title);
-          
-          // 오름차순(asc)이므로 인덱스가 작을수록(Youtube) 더 과거의 시간이어야 맨 위에 옴
-          const timestamp = new Date(baseDate.getTime() + originalIndex * 1000);
-          
-          batch.set(newDocRef, {
-            title: link.title,
-            url: link.url,
-            createdAt: timestamp,
-          });
-        });
-        
-        await batch.commit();
-        return;
-      }
-
       setLinks(linksData);
-    });
+    } catch (error) {
+      console.error("Error fetching links: ", error);
+    }
+  };
 
-    return () => unsubscribe();
+  // 초기 로드 시 링크 가져오기
+  useEffect(() => {
+    fetchLinks();
   }, []);
 
   const {
@@ -135,6 +104,8 @@ export default function Page() {
       
       setIsOpen(false);
       reset();
+      // 추가 후 목록 갱신
+      await fetchLinks();
     } catch (error) {
       console.error("Error adding link: ", error);
       alert("링크 추가 중 오류가 발생했습니다.");
@@ -146,6 +117,8 @@ export default function Page() {
 
     try {
       await deleteDoc(doc(db, "users", "anonymous", "links", id));
+      // 삭제 후 목록 갱신
+      await fetchLinks();
     } catch (error) {
       console.error("Error deleting link: ", error);
       alert("링크 삭제 중 오류가 발생했습니다.");
