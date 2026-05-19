@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -21,6 +21,19 @@ import { links as initialLinks, Link as LinkType } from "@/data/links"
 import Image from "next/image"
 import { ArrowUpRight, Plus, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { db } from "@/lib/firebase"
+import { 
+  collection, 
+  addDoc, 
+  deleteDoc, 
+  doc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  serverTimestamp,
+  getDocs,
+  writeBatch
+} from "firebase/firestore"
 
 const linkSchema = z.object({
   title: z.string()
@@ -38,8 +51,61 @@ const linkSchema = z.object({
 type LinkFormValues = z.infer<typeof linkSchema>;
 
 export default function Page() {
-  const [links, setLinks] = useState<LinkType[]>(initialLinks);
+  const [links, setLinks] = useState<LinkType[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Firestore에서 링크 목록 실시간으로 가져오기
+  useEffect(() => {
+    const linksCol = collection(db, "users", "anonymous", "links");
+    const q = query(linksCol, orderBy("createdAt", "asc"));
+
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      const existingTitles = new Set();
+      const linksData: LinkType[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        existingTitles.add(data.title);
+        linksData.push({ id: doc.id, ...data } as LinkType);
+      });
+
+      // 필수 기본 링크가 없는지 확인
+      const missingDefaults = initialLinks.filter(
+        (def) => !existingTitles.has(def.title)
+      );
+
+      if (missingDefaults.length > 0) {
+        console.log("Seeding missing default links...");
+        const batch = writeBatch(db);
+        
+        // 정렬을 위해 Youtube(index 0)가 가장 과거가 되도록 설정 (asc 정렬이므로)
+        // 아주 과거의 날짜를 기준으로 잡아 신규 링크가 항상 아래에 오도록 함
+        const baseDate = new Date("2024-01-01T00:00:00Z");
+        
+        missingDefaults.forEach((link) => {
+          const newDocRef = doc(linksCol);
+          // initialLinks에서의 원본 인덱스를 찾아 순서 유지
+          const originalIndex = initialLinks.findIndex(l => l.title === link.title);
+          
+          // 오름차순(asc)이므로 인덱스가 작을수록(Youtube) 더 과거의 시간이어야 맨 위에 옴
+          const timestamp = new Date(baseDate.getTime() + originalIndex * 1000);
+          
+          batch.set(newDocRef, {
+            title: link.title,
+            url: link.url,
+            createdAt: timestamp,
+          });
+        });
+        
+        await batch.commit();
+        return;
+      }
+
+      setLinks(linksData);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const {
     register,
@@ -54,25 +120,36 @@ export default function Page() {
     },
   });
 
-  const onSubmit = (data: LinkFormValues) => {
+  const onSubmit = async (data: LinkFormValues) => {
     let formattedUrl = data.url;
     if (!/^https?:\/\//i.test(data.url)) {
       formattedUrl = 'https://' + data.url;
     }
 
-    const newLink: LinkType = {
-      id: crypto.randomUUID(),
-      title: data.title,
-      url: formattedUrl,
-    };
-
-    setLinks([...links, newLink]);
-    setIsOpen(false);
-    reset();
+    try {
+      await addDoc(collection(db, "users", "anonymous", "links"), {
+        title: data.title,
+        url: formattedUrl,
+        createdAt: serverTimestamp(),
+      });
+      
+      setIsOpen(false);
+      reset();
+    } catch (error) {
+      console.error("Error adding link: ", error);
+      alert("링크 추가 중 오류가 발생했습니다.");
+    }
   };
 
-  const handleDeleteLink = (id: string) => {
-    setLinks(links.filter((link) => link.id !== id));
+  const handleDeleteLink = async (id: string) => {
+    if (!confirm("정말 삭제하시겠습니까?")) return;
+
+    try {
+      await deleteDoc(doc(db, "users", "anonymous", "links", id));
+    } catch (error) {
+      console.error("Error deleting link: ", error);
+      alert("링크 삭제 중 오류가 발생했습니다.");
+    }
   };
 
   const handleOpenChange = (open: boolean) => {
