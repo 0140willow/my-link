@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Link as LinkType } from "@/data/links"
 import Image from "next/image"
-import { ArrowUpRight, Plus, Trash2, Pencil, Check, X, LogOut, Lock, Loader2, Eye, Copy } from "lucide-react"
+import { ArrowUpRight, Plus, Trash2, Pencil, Check, X, LogOut, Lock, Eye, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { db, auth } from "@/lib/firebase"
 import {
@@ -101,6 +101,26 @@ export default function Page() {
   // 링크 복사 완료 모달 상태
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
 
+  const fetchLinks = async (uid: string) => {
+    if (!uid) return;
+    const linksCol = collection(db, "users", uid, "links");
+    const q = query(linksCol, orderBy("createdAt", "desc"));
+    
+    try {
+      const querySnapshot = await getDocs(q);
+      const linksData: LinkType[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        linksData.push({ id: doc.id, ...data } as LinkType);
+      });
+
+      setLinks(linksData);
+    } catch (error) {
+      console.error("Error fetching links: ", error);
+    }
+  };
+
   // Auth 상태 실시간 감지 및 링크 조회
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -147,7 +167,11 @@ export default function Page() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Error signing in with Google: ", error);
-      alert("로그인 중 오류가 발생했습니다.");
+      const firebaseError = error as { code?: string };
+      const errorMessage = firebaseError?.code 
+        ? `로그인 중 오류가 발생했습니다. (오류 코드: ${firebaseError.code})` 
+        : "로그인 중 오류가 발생했습니다.";
+      alert(errorMessage);
     }
   };
 
@@ -272,25 +296,7 @@ export default function Page() {
     }
   };
 
-  const fetchLinks = async (uid: string) => {
-    if (!uid) return;
-    const linksCol = collection(db, "users", uid, "links");
-    const q = query(linksCol, orderBy("createdAt", "desc"));
-    
-    try {
-      const querySnapshot = await getDocs(q);
-      const linksData: LinkType[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        linksData.push({ id: doc.id, ...data } as LinkType);
-      });
 
-      setLinks(linksData);
-    } catch (error) {
-      console.error("Error fetching links: ", error);
-    }
-  };
 
   const {
     register,
