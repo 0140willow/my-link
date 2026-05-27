@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Card, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -702,39 +702,50 @@ export default function Page() {
               const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
               return (
-                <div key={link.id} className="group relative w-full">
+                <Card 
+                  key={link.id} 
+                  className="w-full overflow-hidden border-border/50 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5 flex items-center justify-between"
+                >
                   <a
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block w-full"
+                    className="flex-1 min-w-0 group/link"
                   >
-                    <Card className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/30 group-active:scale-[0.98]">
-                      <CardHeader className="flex flex-row items-center justify-between gap-4 p-5">
-                        <div className="flex items-center gap-4">
-                          <div className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-border/50 overflow-hidden group-hover:border-primary/20 transition-colors">
-                            <Image
-                              src={faviconUrl}
-                              alt={`${link.title} icon`}
-                              width={24}
-                              height={24}
-                              className="object-contain"
-                              unoptimized
-                            />
-                          </div>
-                          <CardTitle className="text-base font-semibold tracking-tight">{link.title}</CardTitle>
-                        </div>
-                        <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
-                      </CardHeader>
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/0 to-primary/0 group-hover:via-primary/[0.02] transition-all pointer-events-none" />
-                    </Card>
+                    <div className="flex items-center gap-4 py-4 pl-5 pr-3">
+                      <div className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-border/50 overflow-hidden shrink-0">
+                        <Image
+                          src={faviconUrl}
+                          alt={`${link.title} icon`}
+                          width={24}
+                          height={24}
+                          className="object-contain"
+                          unoptimized
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <CardTitle className="text-base font-semibold tracking-tight text-slate-800 dark:text-slate-100 group-hover/link:text-[#5B5FC7] dark:group-hover/link:text-indigo-400 transition-colors truncate">
+                          {link.title}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {domain}
+                        </p>
+                      </div>
+                      <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover/link:text-[#5B5FC7] dark:group-hover/link:text-indigo-400 transition-colors duration-300 shrink-0 mr-1" />
+                    </div>
                   </a>
-                  <div className="absolute -right-20 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                  {/* 구분선 */}
+                  <div className="h-8 w-[1px] bg-border/40 shrink-0" />
+
+                  {/* 수정, 삭제 액션 버튼 영역 */}
+                  <div className="flex items-center gap-1 px-4 shrink-0">
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleStartEdit(link)}
-                      className="text-muted-foreground hover:text-primary hover:bg-muted"
+                      className="text-muted-foreground hover:text-primary hover:bg-muted h-9 w-9 rounded-xl transition-colors"
+                      title="수정"
                     >
                       <Pencil className="w-4 h-4" />
                     </Button>
@@ -742,12 +753,13 @@ export default function Page() {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleRequestDelete(link)}
-                      className="text-muted-foreground hover:text-destructive hover:bg-muted"
+                      className="text-muted-foreground hover:text-destructive hover:bg-muted h-9 w-9 rounded-xl transition-colors"
+                      title="삭제"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
-                </div>
+                </Card>
               );
             })
           )}
