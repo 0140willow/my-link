@@ -637,9 +637,9 @@ export default function Page() {
                   const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
                   return (
-                    <Card 
+                    <div 
                       key={link.id} 
-                      className="w-full border-border/50 bg-card/40 backdrop-blur-sm p-4 rounded-2xl flex items-center justify-between gap-4"
+                      className="w-full border border-border/50 bg-card/40 backdrop-blur-sm p-4 rounded-2xl flex items-center justify-between gap-4 transition-all duration-300 hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5"
                     >
                       {/* 좌측 링크 로고 고정 */}
                       <div className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-border/50 overflow-hidden shrink-0">
@@ -696,7 +696,7 @@ export default function Page() {
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                    </Card>
+                    </div>
                   );
                 })
           )}
