@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Link as LinkType } from "@/data/links"
 import Image from "next/image"
-import { ArrowUpRight, Plus, Trash2, Pencil, Check, X, LogOut, Lock, Eye, Copy } from "lucide-react"
+import { ArrowUpRight, Plus, Trash2, Pencil, LogOut, Lock, Eye, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { db, auth } from "@/lib/firebase"
 import {
@@ -89,8 +89,9 @@ export default function Page() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editProfileData, setEditProfileData] = useState({ displayName: "", username: "", bio: "" });
 
-  // 인라인 편집 상태
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // 링크 수정 상태
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingLink, setEditingLink] = useState<LinkType | null>(null);
   const [editTitle, setEditTitle] = useState<string>("");
   const [editUrl, setEditUrl] = useState<string>("");
   const [editErrors, setEditErrors] = useState<{ title?: string; url?: string }>({});
@@ -244,22 +245,24 @@ export default function Page() {
   };
 
   const handleStartEdit = (link: LinkType) => {
-    setEditingId(link.id);
+    setEditingLink(link);
     setEditTitle(link.title);
     setEditUrl(link.url);
     setEditErrors({});
+    setIsEditDialogOpen(true);
   };
 
   const handleCancelEdit = () => {
-    setEditingId(null);
+    setIsEditDialogOpen(false);
+    setEditingLink(null);
     setEditTitle("");
     setEditUrl("");
     setEditErrors({});
   };
 
-  const handleSaveEdit = async (id: string) => {
-    if (!user) {
-      alert("로그인이 필요합니다.");
+  const handleSaveEdit = async () => {
+    if (!user || !editingLink) {
+      alert("로그인이 필요하거나 수정 중인 링크가 없습니다.");
       return;
     }
 
@@ -279,12 +282,13 @@ export default function Page() {
     }
 
     try {
-      const linkRef = doc(db, "users", user.uid, "links", id);
+      const linkRef = doc(db, "users", user.uid, "links", editingLink.id);
       await updateDoc(linkRef, {
         title: editTitle,
         url: formattedUrl,
       });
-      setEditingId(null);
+      setIsEditDialogOpen(false);
+      setEditingLink(null);
       setEditTitle("");
       setEditUrl("");
       setEditErrors({});
@@ -624,95 +628,20 @@ export default function Page() {
               ) : (
                 /* 링크 목록 출력 */
                 links.map((link) => {
-              const isEditing = editingId === link.id;
+                  let domain = "example.com";
+                  try {
+                    domain = new URL(link.url).hostname;
+                  } catch {
+                    domain = link.url;
+                  }
+                  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
-              if (isEditing) {
-                return (
-                  <Card 
-                    key={link.id} 
-                    className="relative overflow-hidden border-primary/40 bg-card/80 backdrop-blur-md p-5 space-y-4 shadow-xl shadow-primary/5 ring-1 ring-primary/20 transition-all duration-300"
-                  >
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <Label htmlFor={`edit-title-${link.id}`} className="text-xs font-semibold text-muted-foreground">제목</Label>
-                        <Input
-                          id={`edit-title-${link.id}`}
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          placeholder="예: 인스타그램"
-                          className={cn(
-                            "bg-background/50 border-border/80 focus-visible:ring-[#5B5FC7]",
-                            editErrors.title && "border-destructive focus-visible:ring-destructive"
-                          )}
-                        />
-                        {editErrors.title && (
-                          <p className="text-[0.75rem] font-medium text-destructive mt-0.5">
-                            {editErrors.title}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor={`edit-url-${link.id}`} className="text-xs font-semibold text-muted-foreground">주소 (URL)</Label>
-                        <Input
-                          id={`edit-url-${link.id}`}
-                          value={editUrl}
-                          onChange={(e) => setEditUrl(e.target.value)}
-                          placeholder="example.com"
-                          className={cn(
-                            "bg-background/50 border-border/80 focus-visible:ring-[#5B5FC7]",
-                            editErrors.url && "border-destructive focus-visible:ring-destructive"
-                          )}
-                        />
-                        {editErrors.url && (
-                          <p className="text-[0.75rem] font-medium text-destructive mt-0.5">
-                            {editErrors.url}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2 border-t border-border/30">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleCancelEdit}
-                        className="gap-1.5 h-8 text-xs px-3 border-border hover:bg-muted"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        취소
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleSaveEdit(link.id)}
-                        className="bg-[#5B5FC7] hover:bg-[#4A4EAB] text-white gap-1.5 h-8 text-xs px-3 transition-colors shadow-sm"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        저장
-                      </Button>
-                    </div>
-                  </Card>
-                );
-              }
-
-              let domain = "example.com";
-              try {
-                domain = new URL(link.url).hostname;
-              } catch {
-                domain = link.url;
-              }
-              const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-
-              return (
-                <Card 
-                  key={link.id} 
-                  className="w-full overflow-hidden border-border/50 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5 flex items-center justify-between"
-                >
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 min-w-0 group/link"
-                  >
-                    <div className="flex items-center gap-4 py-4 pl-5 pr-3">
+                  return (
+                    <Card 
+                      key={link.id} 
+                      className="w-full border-border/50 bg-card/40 backdrop-blur-sm p-4 rounded-2xl flex items-center justify-between gap-4"
+                    >
+                      {/* 좌측 링크 로고 고정 */}
                       <div className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-border/50 overflow-hidden shrink-0">
                         <Image
                           src={faviconUrl}
@@ -723,45 +652,53 @@ export default function Page() {
                           unoptimized
                         />
                       </div>
+
+                      {/* 링크 로고 우측에 링크 이름 및 url */}
                       <div className="flex-1 min-w-0 text-left">
-                        <CardTitle className="text-base font-semibold tracking-tight text-slate-800 dark:text-slate-100 group-hover/link:text-[#5B5FC7] dark:group-hover/link:text-indigo-400 transition-colors truncate">
+                        <h3 className="text-base font-semibold tracking-tight text-slate-800 dark:text-slate-100 truncate">
                           {link.title}
-                        </CardTitle>
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {domain}
+                        </h3>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5 select-all">
+                          {link.url}
                         </p>
                       </div>
-                      <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover/link:text-[#5B5FC7] dark:group-hover/link:text-indigo-400 transition-colors duration-300 shrink-0 mr-1" />
-                    </div>
-                  </a>
 
-                  {/* 구분선 */}
-                  <div className="h-8 w-[1px] bg-border/40 shrink-0" />
-
-                  {/* 수정, 삭제 액션 버튼 영역 */}
-                  <div className="flex items-center gap-1 px-4 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleStartEdit(link)}
-                      className="text-muted-foreground hover:text-primary hover:bg-muted h-9 w-9 rounded-xl transition-colors"
-                      title="수정"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRequestDelete(link)}
-                      className="text-muted-foreground hover:text-destructive hover:bg-muted h-9 w-9 rounded-xl transition-colors"
-                      title="삭제"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })
+                      {/* 문구 우측에 버튼 3종 */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {/* 이동 */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}
+                          className="text-muted-foreground hover:text-primary hover:bg-muted h-9 w-9 rounded-xl transition-colors"
+                          title="이동"
+                        >
+                          <ArrowUpRight className="w-4 h-4" />
+                        </Button>
+                        {/* 수정 */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleStartEdit(link)}
+                          className="text-muted-foreground hover:text-primary hover:bg-muted h-9 w-9 rounded-xl transition-colors"
+                          title="수정"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        {/* 삭제 */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRequestDelete(link)}
+                          className="text-muted-foreground hover:text-destructive hover:bg-muted h-9 w-9 rounded-xl transition-colors"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })
           )}
             </>
           )}
@@ -812,6 +749,60 @@ export default function Page() {
               삭제하기
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 링크 수정 커스텀 모달 */}
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={(open) => {
+          if (!open) handleCancelEdit();
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }}>
+            <DialogHeader>
+              <DialogTitle>링크 수정</DialogTitle>
+              <DialogDescription>
+                링크의 이름과 주소(URL)를 수정해 주세요.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-title" className={cn(editErrors.title && "text-destructive")}>제목</Label>
+                <Input
+                  id="edit-title"
+                  placeholder="예: 인스타그램"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className={cn(editErrors.title && "border-destructive focus-visible:ring-destructive")}
+                />
+                {editErrors.title && (
+                  <p className="text-[0.8rem] font-medium text-destructive">
+                    {editErrors.title}
+                  </p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-url" className={cn(editErrors.url && "text-destructive")}>주소 (URL)</Label>
+                <Input
+                  id="edit-url"
+                  placeholder="example.com"
+                  value={editUrl}
+                  onChange={(e) => setEditUrl(e.target.value)}
+                  className={cn(editErrors.url && "border-destructive focus-visible:ring-destructive")}
+                />
+                {editErrors.url && (
+                  <p className="text-[0.8rem] font-medium text-destructive">
+                    {editErrors.url}
+                  </p>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" className="bg-[#5B5FC7] hover:bg-[#4A4EAB] text-white w-full">저장하기</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
